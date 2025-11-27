@@ -1,0 +1,40 @@
+import sqlite3
+from config import MISSILES, DRONES, PREMIUM_MISSILES
+
+async def get_user_profile(user_id: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user:
+        return (
+            f"👤 **پروفایل شما:**\n"
+            f"💎 سکه: {user[2]:,}\n"
+            f"💠 جم: {user[3]}\n"
+            f"⭐ XP: {user[4]:,}\n"
+            f"🆙 سطح: {user[5]}\n"
+            f"💪 قدرت: {user[6]:,}\n"
+            f"🛡 دفاع: سطح {user[7]}"
+        )
+    return "❌ کاربر یافت نشد!"
+
+def get_shop_items():
+    text = "🛒 **فروشگاه WarZone**\n\n💣 **موشک‌ها:**\n"
+    for name, info in MISSILES.items():
+        text += f"• {name} - {info['damage']} damage - {info['price']} سکه\n"
+    
+    text += "\n🚁 **پهپادها:**\n"
+    for name, info in DRONES.items():
+        text += f"• {name} - +{info['bonus']} damage - {info['price']} سکه\n"
+    
+    return text
+
+def get_premium_shop():
+    text = "💎 **فروشگاه ویژه - فقط با جم**\n\n🚀 **موشک‌های ویژه:**\n"
+    for name, info in PREMIUM_MISSILES.items():
+        text += f"• {name} - {info['damage']} damage - {info['price_gem']} جم\n"
+    
+    text += "\n💰 برای خرید جم: /buy_gems"
+    return text
