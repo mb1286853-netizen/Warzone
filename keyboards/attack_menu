@@ -1,0 +1,24 @@
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def attack_inline_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💥 حمله تکی", callback_data="attack_single")],
+            [InlineKeyboardButton(text="🎯 حمله ترکیبی", callback_data="attack_combo")],
+            [InlineKeyboardButton(text="🔄 ترکیب‌های من", callback_data="my_combinations")],
+            [InlineKeyboardButton(text="🔙 بازگشت", callback_data="menu_fighters")]
+        ]
+    )
+    return keyboard
+
+def combination_inline_keyboard():
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🧩 ترکیب ۱", callback_data="combo_1")],
+            [InlineKeyboardButton(text="🧩 ترکیب ۲", callback_data="combo_2")],
+            [InlineKeyboardButton(text="🧩 ترکیب ۳", callback_data="combo_3")],
+            [InlineKeyboardButton(text="✏️ ویرایش ترکیب", callback_data="edit_combo")],
+            [InlineKeyboardButton(text="🔙 بازگشت", callback_data="attack_single")]
+        ]
+    )
+    return keyboard
