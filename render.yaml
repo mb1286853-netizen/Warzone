@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: warzone-bot
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        value: your_bot_token_here
+      - key: ADMIN_IDS
+        value: "123456789"
