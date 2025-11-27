@@ -7,7 +7,6 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiohttp import web
 from datetime import datetime, timedelta
-import json
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,7 +21,7 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# ==================== دیتابیس پیشرفته ====================
+# ==================== دیتابیس ====================
 
 def init_db():
     conn = sqlite3.connect('zone.db')
@@ -57,31 +56,11 @@ def init_db():
     ''')
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_combinations (
-            user_id INTEGER,
-            combo_id INTEGER,
-            combo_name TEXT,
-            missiles TEXT,
-            fighters TEXT,
-            PRIMARY KEY (user_id, combo_id)
-        )
-    ''')
-    
-    cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_cooldowns (
             user_id INTEGER,
             cooldown_type TEXT,
             last_used TIMESTAMP,
             PRIMARY KEY (user_id, cooldown_type)
-        )
-    ''')
-    
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS user_defenses (
-            user_id INTEGER,
-            defense_type TEXT,
-            level INTEGER DEFAULT 1,
-            PRIMARY KEY (user_id, defense_type)
         )
     ''')
     
@@ -93,42 +72,11 @@ init_db()
 # ==================== داده‌های بازی ====================
 
 MISSILES = {
-    "شهاب ۱": {"damage": 50, "price": 200, "min_level": 1, "category": "پیشرفته"},
-    "شهاب ۲": {"damage": 70, "price": 350, "min_level": 2, "category": "پیشرفته"},
-    "سومار": {"damage": 90, "price": 500, "min_level": 3, "category": "پیشرفته"},
-    "قدر": {"damage": 110, "price": 700, "min_level": 4, "category": "پیشرفته"},
-    "فاتح": {"damage": 130, "price": 1000, "min_level": 5, "category": "پیشرفته"},
-    "زلزال": {"damage": 160, "price": 1500, "min_level": 6, "category": "فوق‌پیشرفته"},
-    "نازعات": {"damage": 190, "price": 2000, "min_level": 7, "category": "فوق‌پیشرفته"},
-    "صیاد": {"damage": 220, "price": 2500, "min_level": 8, "category": "فوق‌پیشرفته"},
-    "شعله": {"damage": 320, "price": 5000, "min_level": 11, "category": "آتش‌زا"},
-    "آتش": {"damage": 410, "price": 8000, "min_level": 14, "category": "آتش‌زا"},
-    "آرماگدون": {"damage": 500, "price": 15000, "min_level": 16, "category": "آخرالزمانی"},
-    "رگناروک": {"damage": 660, "price": 25000, "min_level": 18, "category": "آخرالزمانی"},
-    "تایتان": {"damage": 1200, "price_gem": 20, "min_level": 25, "category": "ویژه"},
-    "ابرنواختر": {"damage": 2000, "price_gem": 50, "min_level": 30, "category": "ویژه"},
-}
-
-FIGHTERS = {
-    "F-16 Falcon": {"bonus": 80, "price": 5000, "min_level": 10},
-    "F-22 Raptor": {"bonus": 150, "price": 12000, "min_level": 12},
-    "Su-57 Felon": {"bonus": 220, "price": 25000, "min_level": 14},
-    "F-35 Lightning": {"bonus": 300, "price": 50000, "min_level": 16},
-}
-
-DEFENSES = {
-    "پدافند موشکی": {"reduction": 0.15, "price": 3000, "max_level": 10},
-    "پدافند الکترونیک": {"reduction": 0.10, "price": 2000, "max_level": 8},
-    "پدافند ضد جنگنده": {"reduction": 0.12, "price": 4000, "max_level": 6},
-    "امنیت سایبری": {"reduction": 0.20, "price": 5000, "max_level": 5},
-}
-
-LEAGUES = {
-    1: {"name": "🥉 برنز", "min_power": 0, "max_power": 1000, "reward": 100},
-    2: {"name": "🥈 نقره", "min_power": 1000, "max_power": 3000, "reward": 300},
-    3: {"name": "🥇 طلا", "min_power": 3000, "max_power": 6000, "reward": 600},
-    4: {"name": "💎 پلاتین", "min_power": 6000, "max_power": 10000, "reward": 1000},
-    5: {"name": "🏆 افسانه‌ای", "min_power": 10000, "max_power": 999999, "reward": 2000},
+    "شهاب ۱": {"damage": 50, "price": 200, "min_level": 1},
+    "شهاب ۲": {"damage": 70, "price": 350, "min_level": 2},
+    "سومار": {"damage": 90, "price": 500, "min_level": 3},
+    "قدر": {"damage": 110, "price": 700, "min_level": 4},
+    "فاتح": {"damage": 130, "price": 1000, "min_level": 5},
 }
 
 MINER_LEVELS = {
@@ -155,33 +103,10 @@ def get_user_missiles(user_id):
     conn.close()
     return missiles
 
-def get_user_combinations(user_id):
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM user_combinations WHERE user_id = ? ORDER BY combo_id', (user_id,))
-    combos = cursor.fetchall()
-    conn.close()
-    return combos
-
-def get_user_defenses(user_id):
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT defense_type, level FROM user_defenses WHERE user_id = ?', (user_id,))
-    defenses = cursor.fetchall()
-    conn.close()
-    return defenses
-
 def update_user_coins(user_id, amount):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
     cursor.execute('UPDATE users SET zone_coin = zone_coin + ? WHERE user_id = ?', (amount, user_id))
-    conn.commit()
-    conn.close()
-
-def update_user_gems(user_id, amount):
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('UPDATE users SET zone_gem = zone_gem + ? WHERE user_id = ?', (amount, user_id))
     conn.commit()
     conn.close()
 
@@ -196,13 +121,6 @@ def update_user_power(user_id, amount):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
     cursor.execute('UPDATE users SET power = power + ? WHERE user_id = ?', (amount, user_id))
-    conn.commit()
-    conn.close()
-
-def update_user_level(user_id, level):
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('UPDATE users SET level = ? WHERE user_id = ?', (level, user_id))
     conn.commit()
     conn.close()
 
@@ -250,14 +168,6 @@ def init_user(user_id, username):
             VALUES (?, ?, ?)
         ''', missile)
     
-    initial_combos = [
-        (user_id, 1, "ترکیب سریع", '["شهاب ۱", "شهاب ۱"]', '[]'),
-        (user_id, 2, "ترکیب قدرتمند", '["شهاب ۲", "شهاب ۲"]', '[]'),
-        (user_id, 3, "ترکیب ویژه", '["شهاب ۱", "شهاب ۲"]', '[]')
-    ]
-    for combo in initial_combos:
-        cursor.execute('INSERT OR REPLACE INTO user_combinations VALUES (?, ?, ?, ?, ?)', combo)
-    
     conn.commit()
     conn.close()
 
@@ -268,36 +178,7 @@ def main_menu():
         [types.InlineKeyboardButton(text="👤 پروفایل", callback_data="profile")],
         [types.InlineKeyboardButton(text="🛒 فروشگاه", callback_data="shop")],
         [types.InlineKeyboardButton(text="⛏️ ماینر ZP", callback_data="miner")],
-        [types.InlineKeyboardButton(text="💥 سیستم حمله", callback_data="attack_menu")],
-        [types.InlineKeyboardButton(text="🛡️ پدافندها", callback_data="defenses")],
         [types.InlineKeyboardButton(text="🎡 گردونه", callback_data="wheel")],
-        [types.InlineKeyboardButton(text="🏆 لیگ‌ها", callback_data="leagues")],
-        [types.InlineKeyboardButton(text="🛠️ ادمین", callback_data="admin_panel")]
-    ])
-
-def attack_menu():
-    return types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="⚔️ حمله تکی", callback_data="single_attack_info")],
-        [types.InlineKeyboardButton(text="🧩 حمله ترکیبی", callback_data="combo_attack_info")],
-        [types.InlineKeyboardButton(text="🔧 ترکیب‌های من", callback_data="my_combinations")],
-        [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
-    ])
-
-def shop_menu():
-    return types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="💣 موشک‌ها", callback_data="shop_missiles")],
-        [types.InlineKeyboardButton(text="🚁 جنگنده‌ها", callback_data="shop_fighters")],
-        [types.InlineKeyboardButton(text="🛡️ پدافند", callback_data="shop_defense")],
-        [types.InlineKeyboardButton(text="💎 ویژه", callback_data="shop_premium")],
-        [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
-    ])
-
-def admin_menu():
-    return types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="💰 افزودن سکه", callback_data="admin_add_coins")],
-        [types.InlineKeyboardButton(text="💎 افزودن جم", callback_data="admin_add_gems")],
-        [types.InlineKeyboardButton(text="🆙 تنظیم لول", callback_data="admin_set_level")],
-        [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
     ])
 
 # ==================== دستورات اصلی ====================
@@ -310,7 +191,7 @@ async def start_command(message: types.Message):
     
     await message.answer(
         "🚀 **به WarZone خوش آمدید!**\n\n"
-        "🪐 ربات جنگی پیشرفته با تمام قابلیت‌ها\n\n"
+        "🪐 ربات جنگی پیشرفته\n\n"
         "از منوی زیر انتخاب کنید:",
         reply_markup=main_menu()
     )
@@ -320,17 +201,9 @@ async def profile_handler(callback: types.CallbackQuery):
     user_id = callback.from_user.id
     user_data = get_user(user_id)
     user_missiles = get_user_missiles(user_id)
-    user_defenses = get_user_defenses(user_id)
     
     if not user_data:
         return
-    
-    user_power = user_data[7]
-    current_league = "🥉 برنز"
-    for league in LEAGUES.values():
-        if league["min_power"] <= user_power < league["max_power"]:
-            current_league = league["name"]
-            break
     
     profile_text = (
         f"👤 **پروفایل کامل شما**\n\n"
@@ -339,19 +212,12 @@ async def profile_handler(callback: types.CallbackQuery):
         f"🪙 **ZP:** {user_data[4]:,}\n"
         f"⭐ **XP:** {user_data[5]:,}\n"
         f"🆙 **سطح:** {user_data[6]}\n"
-        f"💪 **کاپ:** {user_data[7]:,}\n"
-        f"🏆 **لیگ:** {current_league}\n"
-        f"🛡️ **سطح دفاع:** {user_data[8]}\n"
-        f"🔒 **امنیت:** {user_data[9]}\n"
-        f"🕵️ **خرابکاری:** {user_data[10]}\n\n"
+        f"💪 **کاپ:** {user_data[7]:,}\n\n"
         f"💣 **موشک‌ها:**\n"
     )
     
-    for missile, qty in user_missiles[:5]:
+    for missile, qty in user_missiles:
         profile_text += f"• {missile}: {qty} عدد\n"
-    
-    if len(user_missiles) > 5:
-        profile_text += f"• و {len(user_missiles) - 5} موشک دیگر...\n"
     
     profile_text += f"\n📊 **مجموع موشک‌ها:** {sum(q for _, q in user_missiles)} عدد"
     
@@ -365,31 +231,21 @@ async def profile_handler(callback: types.CallbackQuery):
 
 @dp.callback_query(F.data == "shop")
 async def shop_handler(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "🛒 **فروشگاه WarZone**\n\n"
-        "دسته مورد نظر را انتخاب کنید:",
-        reply_markup=shop_menu()
-    )
-
-@dp.callback_query(F.data == "shop_missiles")
-async def shop_missiles_handler(callback: types.CallbackQuery):
     user_data = get_user(callback.from_user.id)
     if not user_data:
         return
     
     user_level = user_data[6]
-    text = "💣 **فروشگاه موشک‌ها**\n\n"
+    text = "🛒 **فروشگاه موشک‌ها**\n\n"
     
     for name, info in MISSILES.items():
         if info["min_level"] <= user_level:
-            price = info.get('price_gem', info.get('price'))
-            currency = "جم" if 'price_gem' in info else "سکه"
-            text += f"• {name} - {info['damage']} damage - {price} {currency}\n"
+            text += f"• {name} - {info['damage']} damage - {info['price']} سکه\n"
     
     await callback.message.edit_text(
         text,
         reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="shop")]
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
         ])
     )
 
@@ -421,46 +277,6 @@ async def miner_handler(callback: types.CallbackQuery):
             [types.InlineKeyboardButton(text=f"💰 برداشت ({int(accumulated_zp)} ZP)", callback_data="miner_claim")],
             [types.InlineKeyboardButton(text=f"⬆️ ارتقا ({miner_info['upgrade_cost']} ZP)", callback_data="miner_upgrade")],
             [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
-        ])
-    )
-
-@dp.callback_query(F.data == "attack_menu")
-async def attack_menu_handler(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "💥 **سیستم حمله WarZone**\n\n"
-        "نوع حمله را انتخاب کنید:",
-        reply_markup=attack_menu()
-    )
-
-@dp.callback_query(F.data == "single_attack_info")
-async def single_attack_info_handler(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "⚔️ **حمله تکی**\n\n"
-        "برای حمله تکی:\n"
-        "۱. روی پیام کاربر ریپلای کنید\n"
-        "۲. دستور زیر را ارسال کنید:\n"
-        "`حمله [نام موشک]`\n\n"
-        "مثال:\n"
-        "`حمله شهاب ۱`\n\n"
-        "❌ به مالک و ربات‌ها نمی‌توان حمله کرد!",
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="attack_menu")]
-        ])
-    )
-
-@dp.callback_query(F.data == "combo_attack_info")
-async def combo_attack_info_handler(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "🧩 **حمله ترکیبی**\n\n"
-        "برای حمله ترکیبی:\n"
-        "۱. روی پیام کاربر ریپلای کنید\n"
-        "۲. دستور زیر را ارسال کنید:\n"
-        "`حمله ترکیبی [شماره ترکیب]`\n\n"
-        "مثال:\n"
-        "`حمله ترکیبی ۱`\n\n"
-        "❌ به مالک و ربات‌ها نمی‌توان حمله کرد!",
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="attack_menu")]
         ])
     )
 
@@ -499,8 +315,6 @@ async def wheel_handler(callback: types.CallbackQuery):
         ''', (user_id, prize["value"]))
         conn.commit()
         conn.close()
-    elif prize["type"] == "gems":
-        update_user_gems(user_id, prize["value"])
     
     set_feature_cooldown(user_id, "wheel")
     
@@ -513,29 +327,86 @@ async def wheel_handler(callback: types.CallbackQuery):
         ])
     )
 
-@dp.callback_query(F.data == "leagues")
-async def leagues_handler(callback: types.CallbackQuery):
-    text = "🏆 **لیگ‌های WarZone**\n\n"
-    
-    for league_id, league in LEAGUES.items():
-        text += f"{league['name']}: {league['min_power']:,} - {league['max_power']:,} قدرت\n"
-    
-    text += "\n🎯 هر لیگ جوایز مخصوص خود را دارد!"
-    
+@dp.callback_query(F.data == "back_to_main")
+async def back_to_main_handler(callback: types.CallbackQuery):
     await callback.message.edit_text(
-        text,
-        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
-            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
-        ])
+        "🚀 **به WarZone خوش آمدید!**\n\n"
+        "🪐 ربات جنگی پیشرفته\n\n"
+        "از منوی زیر انتخاب کنید:",
+        reply_markup=main_menu()
     )
 
-@dp.callback_query(F.data == "defenses")
-async def defenses_handler(callback: types.CallbackQuery):
-    user_defenses = get_user_defenses(callback.from_user.id)
+# ==================== سیستم حمله ====================
+
+@dp.message(F.text.startswith("حمله "))
+async def single_attack_handler(message: types.Message):
+    if not message.reply_to_message:
+        await message.answer("❌ برای حمله روی پیام کاربر ریپلای کنید!")
+        return
     
-    text = "🛡️ **سیستم پدافند**\n\n"
+    if not message.reply_to_message.from_user:
+        await message.answer("❌ روی پیام یک کاربر ریپلای کنید!")
+        return
     
-    if user_defenses:
-        for defense_type, level in user_defenses:
-            defense_info = DEFENSES.get(defense_type, {})
-            reduction = defense_info.get('reduction', 0)
+    target = message.reply_to_message.from_user
+    attacker = message.from_user
+    
+    if target.id == attacker.id:
+        await message.answer("❌ نمیتونی به خودت حمله کنی!")
+        return
+    
+    if target.id in ADMIN_IDS or target.is_bot:
+        await message.answer("❌ به این کاربر نمی‌توان حمله کرد!")
+        return
+    
+    missile_name = message.text.replace("حمله ", "").strip()
+    
+    user_missiles = get_user_missiles(attacker.id)
+    has_missile = any(missile[0] == missile_name for missile in user_missiles)
+    
+    if not has_missile:
+        await message.answer(f"❌ موشک {missile_name} را ندارید!")
+        return
+    
+    damage = MISSILES.get(missile_name, {}).get("damage", 100)
+    coin_loss = min(damage * 2, 500)
+    cap_gain = damage // 10
+    xp_gain = damage // 5
+    
+    update_user_coins(attacker.id, coin_loss)
+    update_user_coins(target.id, -coin_loss)
+    update_user_power(attacker.id, cap_gain)
+    update_user_power(target.id, -cap_gain // 2)
+    
+    await message.answer(
+        f"⚔️ **حمله تکی موفق!**\n\n"
+        f"🎯 هدف: {target.first_name}\n"
+        f"💣 موشک: {missile_name}\n"
+        f"💥 خسارت: {damage}\n"
+        f"💰 سکه غنیمتی: {coin_loss}\n"
+        f"💪 کاپ کسب شده: {cap_gain}\n"
+        f"⭐ XP: {xp_gain}"
+    )
+
+# ==================== وب سرور ====================
+
+async def health_check(request):
+    return web.Response(text="🤖 WarZone Bot - Active")
+
+async def main():
+    app = web.Application()
+    app.router.add_get('/', health_check)
+    app.router.add_get('/health', health_check)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(os.getenv('PORT', 8080))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    logger.info("🤖 ربات WarZone شروع به کار کرد!")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
