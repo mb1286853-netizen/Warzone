@@ -93,27 +93,18 @@ init_db()
 # ==================== داده‌های بازی ====================
 
 MISSILES = {
-    # پیشرفته (لول ۱-۵)
     "شهاب ۱": {"damage": 50, "price": 200, "min_level": 1, "category": "پیشرفته"},
     "شهاب ۲": {"damage": 70, "price": 350, "min_level": 2, "category": "پیشرفته"},
     "سومار": {"damage": 90, "price": 500, "min_level": 3, "category": "پیشرفته"},
     "قدر": {"damage": 110, "price": 700, "min_level": 4, "category": "پیشرفته"},
     "فاتح": {"damage": 130, "price": 1000, "min_level": 5, "category": "پیشرفته"},
-    
-    # فوق‌پیشرفته (لول ۶-۱۰)
     "زلزال": {"damage": 160, "price": 1500, "min_level": 6, "category": "فوق‌پیشرفته"},
     "نازعات": {"damage": 190, "price": 2000, "min_level": 7, "category": "فوق‌پیشرفته"},
     "صیاد": {"damage": 220, "price": 2500, "min_level": 8, "category": "فوق‌پیشرفته"},
-    
-    # آتش‌زا (لول ۱۱-۱۵)
     "شعله": {"damage": 320, "price": 5000, "min_level": 11, "category": "آتش‌زا"},
     "آتش": {"damage": 410, "price": 8000, "min_level": 14, "category": "آتش‌زا"},
-    
-    # آخرالزمانی (لول ۱۶-۲۰)
     "آرماگدون": {"damage": 500, "price": 15000, "min_level": 16, "category": "آخرالزمانی"},
     "رگناروک": {"damage": 660, "price": 25000, "min_level": 18, "category": "آخرالزمانی"},
-    
-    # ویژه (فقط با جم)
     "تایتان": {"damage": 1200, "price_gem": 20, "min_level": 25, "category": "ویژه"},
     "ابرنواختر": {"damage": 2000, "price_gem": 50, "min_level": 30, "category": "ویژه"},
 }
@@ -216,7 +207,6 @@ def update_user_level(user_id, level):
     conn.close()
 
 def can_use_feature(user_id, feature_type, cooldown_hours=24):
-    """بررسی امکان استفاده از قابلیت‌ها"""
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
     
@@ -237,7 +227,6 @@ def can_use_feature(user_id, feature_type, cooldown_hours=24):
     return remaining <= 0, max(0, remaining)
 
 def set_feature_cooldown(user_id, feature_type):
-    """تنظیم کول‌داون"""
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
     
@@ -254,7 +243,6 @@ def init_user(user_id, username):
     cursor = conn.cursor()
     cursor.execute('INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)', (user_id, username))
     
-    # موشک‌های اولیه
     initial_missiles = [(user_id, "شهاب ۱", 5), (user_id, "شهاب ۲", 3)]
     for missile in initial_missiles:
         cursor.execute('''
@@ -262,7 +250,6 @@ def init_user(user_id, username):
             VALUES (?, ?, ?)
         ''', missile)
     
-    # ترکیب‌های اولیه
     initial_combos = [
         (user_id, 1, "ترکیب سریع", '["شهاب ۱", "شهاب ۱"]', '[]'),
         (user_id, 2, "ترکیب قدرتمند", '["شهاب ۲", "شهاب ۲"]', '[]'),
@@ -338,7 +325,6 @@ async def profile_handler(callback: types.CallbackQuery):
     if not user_data:
         return
     
-    # محاسبه لیگ
     user_power = user_data[7]
     current_league = "🥉 برنز"
     for league in LEAGUES.values():
@@ -361,7 +347,7 @@ async def profile_handler(callback: types.CallbackQuery):
         f"💣 **موشک‌ها:**\n"
     )
     
-    for missile, qty in user_missiles[:5]:  # فقط ۵ موشک اول
+    for missile, qty in user_missiles[:5]:
         profile_text += f"• {missile}: {qty} عدد\n"
     
     if len(user_missiles) > 5:
@@ -377,114 +363,106 @@ async def profile_handler(callback: types.CallbackQuery):
         ])
     )
 
-# ==================== سیستم حمله ====================
-
-@dp.message(F.text.startswith("حمله "))
-async def single_attack_handler(message: types.Message):
-    if not message.reply_to_message:
-        await message.answer("❌ برای حمله روی پیام کاربر ریپلای کنید!")
-        return
-    
-    if not message.reply_to_message.from_user:
-        await message.answer("❌ روی پیام یک کاربر ریپلای کنید!")
-        return
-    
-    target = message.reply_to_message.from_user
-    attacker = message.from_user
-    
-    if target.id == attacker.id:
-        await message.answer("❌ نمیتونی به خودت حمله کنی!")
-        return
-    
-    if target.id in ADMIN_IDS or target.is_bot:
-        await message.answer("❌ به این کاربر نمی‌توان حمله کرد!")
-        return
-    
-    missile_name = message.text.replace("حمله ", "").strip()
-    
-    # بررسی وجود موشک
-    user_missiles = get_user_missiles(attacker.id)
-    has_missile = any(missile[0] == missile_name for missile in user_missiles)
-    
-    if not has_missile:
-        await message.answer(f"❌ موشک {missile_name} را ندارید!")
-        return
-    
-    # محاسبات حمله
-    damage = MISSILES.get(missile_name, {}).get("damage", 100)
-    coin_loss = min(damage * 2, 500)
-    cap_gain = damage // 10
-    xp_gain = damage // 5
-    
-    # آپدیت کاربران
-    update_user_coins(attacker.id, coin_loss)
-    update_user_coins(target.id, -coin_loss)
-    update_user_power(attacker.id, cap_gain)
-    update_user_power(target.id, -cap_gain // 2)
-    
-    await message.answer(
-        f"⚔️ **حمله تکی موفق!**\n\n"
-        f"🎯 هدف: {target.first_name}\n"
-        f"💣 موشک: {missile_name}\n"
-        f"💥 خسارت: {damage}\n"
-        f"💰 سکه غنیمتی: {coin_loss}\n"
-        f"💪 کاپ کسب شده: {cap_gain}\n"
-        f"⭐ XP: {xp_gain}"
+@dp.callback_query(F.data == "shop")
+async def shop_handler(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "🛒 **فروشگاه WarZone**\n\n"
+        "دسته مورد نظر را انتخاب کنید:",
+        reply_markup=shop_menu()
     )
 
-@dp.message(F.text.startswith("حمله ترکیبی "))
-async def combo_attack_handler(message: types.Message):
-    if not message.reply_to_message:
-        await message.answer("❌ برای حمله روی پیام کاربر ریپلای کنید!")
+@dp.callback_query(F.data == "shop_missiles")
+async def shop_missiles_handler(callback: types.CallbackQuery):
+    user_data = get_user(callback.from_user.id)
+    if not user_data:
         return
     
-    target = message.reply_to_message.from_user
-    attacker = message.from_user
+    user_level = user_data[6]
+    text = "💣 **فروشگاه موشک‌ها**\n\n"
     
-    if target.id == attacker.id:
-        await message.answer("❌ نمیتونی به خودت حمله کنی!")
-        return
+    for name, info in MISSILES.items():
+        if info["min_level"] <= user_level:
+            price = info.get('price_gem', info.get('price'))
+            currency = "جم" if 'price_gem' in info else "سکه"
+            text += f"• {name} - {info['damage']} damage - {price} {currency}\n"
     
-    if target.id in ADMIN_IDS or target.is_bot:
-        await message.answer("❌ به این کاربر نمی‌توان حمله کرد!")
-        return
-    
-    combo_id = message.text.replace("حمله ترکیبی ", "").strip()
-    if not combo_id.isdigit() or int(combo_id) not in [1, 2, 3]:
-        await message.answer("❌ شماره ترکیب باید ۱، ۲ یا ۳ باشد!")
-        return
-    
-    combo_id = int(combo_id)
-    user_combos = get_user_combinations(attacker.id)
-    selected_combo = next((combo for combo in user_combos if combo[1] == combo_id), None)
-    
-    if not selected_combo:
-        await message.answer("❌ ترکیب مورد نظر یافت نشد!")
-        return
-    
-    # محاسبات حمله ترکیبی
-    total_damage = 500  # دمیج ثابت برای تست
-    coin_loss = min(total_damage * 3, 1000)
-    cap_gain = total_damage // 8
-    xp_gain = total_damage // 4
-    
-    # آپدیت کاربران
-    update_user_coins(attacker.id, coin_loss)
-    update_user_coins(target.id, -coin_loss)
-    update_user_power(attacker.id, cap_gain)
-    update_user_power(target.id, -cap_gain // 2)
-    
-    await message.answer(
-        f"🧩 **حمله ترکیبی موفق!**\n\n"
-        f"🎯 هدف: {target.first_name}\n"
-        f"💥 ترکیب: {selected_combo[2]}\n"
-        f"💥 خسارت کل: {total_damage}\n"
-        f"💰 سکه غنیمتی: {coin_loss}\n"
-        f"💪 کاپ کسب شده: {cap_gain}\n"
-        f"⭐ XP: {xp_gain}"
+    await callback.message.edit_text(
+        text,
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="shop")]
+        ])
     )
 
-# ==================== سیستم گردونه ====================
+@dp.callback_query(F.data == "miner")
+async def miner_handler(callback: types.CallbackQuery):
+    user_data = get_user(callback.from_user.id)
+    if not user_data:
+        return
+    
+    miner_level = user_data[12]
+    miner_info = MINER_LEVELS.get(miner_level, MINER_LEVELS[1])
+    
+    last_claim = user_data[13]
+    accumulated_zp = 0
+    if last_claim:
+        last_claim_time = datetime.fromisoformat(last_claim)
+        hours_passed = (datetime.now() - last_claim_time).total_seconds() / 3600
+        accumulated_zp = min(hours_passed * miner_info["zp_per_hour"], miner_info["max_capacity"])
+    
+    await callback.message.edit_text(
+        f"⛏️ **ماینر ZonePoint**\n\n"
+        f"🔄 سطح: {miner_level}\n"
+        f"📊 تولید: {miner_info['zp_per_hour']} ZP/ساعت\n"
+        f"💳 موجودی: {user_data[4]} ZP\n"
+        f"📈 انباشته: {int(accumulated_zp)} ZP\n"
+        f"🫙 ظرفیت: {miner_info['max_capacity']} ZP\n\n"
+        f"⏰ بعد از ۳ ساعت برداشت کنید!",
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text=f"💰 برداشت ({int(accumulated_zp)} ZP)", callback_data="miner_claim")],
+            [types.InlineKeyboardButton(text=f"⬆️ ارتقا ({miner_info['upgrade_cost']} ZP)", callback_data="miner_upgrade")],
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
+        ])
+    )
+
+@dp.callback_query(F.data == "attack_menu")
+async def attack_menu_handler(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "💥 **سیستم حمله WarZone**\n\n"
+        "نوع حمله را انتخاب کنید:",
+        reply_markup=attack_menu()
+    )
+
+@dp.callback_query(F.data == "single_attack_info")
+async def single_attack_info_handler(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "⚔️ **حمله تکی**\n\n"
+        "برای حمله تکی:\n"
+        "۱. روی پیام کاربر ریپلای کنید\n"
+        "۲. دستور زیر را ارسال کنید:\n"
+        "`حمله [نام موشک]`\n\n"
+        "مثال:\n"
+        "`حمله شهاب ۱`\n\n"
+        "❌ به مالک و ربات‌ها نمی‌توان حمله کرد!",
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="attack_menu")]
+        ])
+    )
+
+@dp.callback_query(F.data == "combo_attack_info")
+async def combo_attack_info_handler(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "🧩 **حمله ترکیبی**\n\n"
+        "برای حمله ترکیبی:\n"
+        "۱. روی پیام کاربر ریپلای کنید\n"
+        "۲. دستور زیر را ارسال کنید:\n"
+        "`حمله ترکیبی [شماره ترکیب]`\n\n"
+        "مثال:\n"
+        "`حمله ترکیبی ۱`\n\n"
+        "❌ به مالک و ربات‌ها نمی‌توان حمله کرد!",
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="attack_menu")]
+        ])
+    )
 
 @dp.callback_query(F.data == "wheel")
 async def wheel_handler(callback: types.CallbackQuery):
@@ -506,7 +484,6 @@ async def wheel_handler(callback: types.CallbackQuery):
     
     prize = random.choice(prizes)
     
-    # اعطای جایزه
     if prize["type"] == "coins":
         update_user_coins(user_id, prize["value"])
     elif prize["type"] == "zp":
@@ -536,35 +513,29 @@ async def wheel_handler(callback: types.CallbackQuery):
         ])
     )
 
-# ==================== سیستم ادمین ====================
-
-def is_admin(user_id):
-    return user_id in ADMIN_IDS
-
-@dp.callback_query(F.data == "admin_panel")
-async def admin_panel_handler(callback: types.CallbackQuery):
-    if not is_admin(callback.from_user.id):
-        await callback.answer("❌ دسترسی denied!", show_alert=True)
-        return
+@dp.callback_query(F.data == "leagues")
+async def leagues_handler(callback: types.CallbackQuery):
+    text = "🏆 **لیگ‌های WarZone**\n\n"
+    
+    for league_id, league in LEAGUES.items():
+        text += f"{league['name']}: {league['min_power']:,} - {league['max_power']:,} قدرت\n"
+    
+    text += "\n🎯 هر لیگ جوایز مخصوص خود را دارد!"
     
     await callback.message.edit_text(
-        "🛠️ **پنل مدیریت WarZone**\n\n"
-        "گزینه مورد نظر را انتخاب کنید:",
-        reply_markup=admin_menu()
+        text,
+        reply_markup=types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")]
+        ])
     )
 
-@dp.message(Command("addcoins"))
-async def admin_add_coins(message: types.Message):
-    if not is_admin(message.from_user.id):
-        return
+@dp.callback_query(F.data == "defenses")
+async def defenses_handler(callback: types.CallbackQuery):
+    user_defenses = get_user_defenses(callback.from_user.id)
     
-    try:
-        args = message.text.split()
-        if len(args) != 3:
-            await message.answer("❌ فرمت: /addcoins user_id amount")
-            return
-        
-        user_id, amount = int(args[1]), int(args[2])
-        
-        if not get_user(user_id):
-            await message.answer(
+    text = "🛡️ **سیستم پدافند**\n\n"
+    
+    if user_defenses:
+        for defense_type, level in user_defenses:
+            defense_info = DEFENSES.get(defense_type, {})
+            reduction = defense_info.get('reduction', 0)
