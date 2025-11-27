@@ -1,77 +1,63 @@
 import os
 import logging
 import asyncio
+import requests
+import threading
+import time
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.client.default import DefaultBotProperties
-from aiogram.enums import ParseMode
 from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-if not BOT_TOKEN:
-    logger.error("❌ BOT_TOKEN تنظیم نشده!")
-    exit(1)
-
-# ساخت بات با تنظیمات ویژه برای جلوگیری از conflict
-bot = Bot(
-    token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# ==================== کیبورد اصلی ====================
+# ==================== Keep Alive ====================
 
-def main_inline_keyboard():
-    keyboard = types.InlineKeyboardMarkup(
-        inline_keyboard=[
-            [types.InlineKeyboardButton(text="🪐 جنگنده‌ها", callback_data="menu_fighters")],
-            [types.InlineKeyboardButton(text="⛏️ ماینر ZP", callback_data="menu_miner")],
-            [types.InlineKeyboardButton(text="🛒 فروشگاه", callback_data="menu_shop")],
-            [types.InlineKeyboardButton(text="👤 پروفایل", callback_data="menu_profile")],
-        ]
-    )
-    return keyboard
+def keep_alive():
+    def ping():
+        while True:
+            try:
+                # جای YOUR-BOT-URL رو با آدرس واقعی رباتت عوض کن
+                requests.get("https://warzone-bot.onrender.com/")
+                logger.info("🔄 پینگ ارسال شد")
+            except Exception as e:
+                logger.error(f"❌ خطا در پینگ: {e}")
+            time.sleep(300)  # هر 5 دقیقه
+    
+    thread = threading.Thread(target=ping, daemon=True)
+    thread.start()
+    logger.info("✅ سیستم Keep-Alive فعال شد")
 
-# ==================== دستورات ====================
+# ==================== منوها ====================
+
+def main_menu():
+    return types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="👤 پروفایل", callback_data="profile")],
+        [types.InlineKeyboardButton(text="🛒 فروشگاه", callback_data="shop")],
+        [types.InlineKeyboardButton(text="⛏️ ماینر", callback_data="miner")]
+    ])
 
 @dp.message(Command("start"))
-async def start_command(message: types.Message):
-    await message.answer(
-        "🚀 **به WarZone خوش آمدید!**\n\n"
-        "لطفا یک گزینه انتخاب کنید:",
-        reply_markup=main_inline_keyboard()
-    )
+async def start(message: types.Message):
+    await message.answer("🚀 به WarZone خوش آمدید!", reply_markup=main_menu())
 
-@dp.callback_query(F.data == "menu_profile")
-async def profile_menu(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "👤 **پروفایل شما:**\n💎 سکه: 1,000\n🆙 سطح: 1",
-        reply_markup=types.InlineKeyboardMarkup(
-            inline_keyboard=[[
-                types.InlineKeyboardButton(text="🔙 بازگشت", callback_data="back_to_main")
-            ]]
-        )
-    )
-
-@dp.callback_query(F.data == "back_to_main")
-async def back_to_main(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "منوی اصلی:",
-        reply_markup=main_inline_keyboard()
-    )
+@dp.callback_query(F.data == "profile")
+async def profile(callback: types.CallbackQuery):
+    await callback.message.edit_text("👤 پروفایل شما", reply_markup=main_menu())
 
 # ==================== وب سرور ====================
 
-async def health_check(request):
-    return web.Response(text="OK")
+async def web_handler(request):
+    return web.Response(text="🤖 WarZone Bot - Active")
 
 async def start_web_server():
     app = web.Application()
-    app.router.add_get('/health', health_check)
-    app.router.add_get('/', health_check)
+    app.router.add_get('/', web_handler)
+    app.router.add_get('/health', web_handler)
     
     runner = web.AppRunner(app)
     await runner.setup()
@@ -84,23 +70,17 @@ async def start_web_server():
     return runner
 
 async def main():
-    logger.info("🔄 راه‌اندازی ربات...")
+    # شروع keep-alive
+    keep_alive()
     
-    # استارت وب سرور
+    # شروع وب سرور
     runner = await start_web_server()
     
     try:
-        # پاک کردن webhook قبل از شروع polling
-        await bot.delete_webhook(drop_pending_updates=True)
-        
-        logger.info("🚀 ربات شروع به کار کرد!")
+        logger.info("🚀 ربات WarZone شروع به کار کرد!")
         await dp.start_polling(bot)
-        
-    except Exception as e:
-        logger.error(f"خطا: {e}")
     finally:
         await runner.cleanup()
-        await bot.session.close()
 
 if __name__ == "__main__":
     asyncio.run(main())
