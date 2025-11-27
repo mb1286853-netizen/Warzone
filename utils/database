@@ -1,4 +1,40 @@
 import sqlite3
+from datetime import datetime
+
+def init_db():
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            zone_coin INTEGER DEFAULT 1000,
+            zone_gem INTEGER DEFAULT 0,
+            zone_point INTEGER DEFAULT 0,
+            xp INTEGER DEFAULT 0,
+            level INTEGER DEFAULT 1,
+            power INTEGER DEFAULT 100,
+            defense_level INTEGER DEFAULT 1,
+            cyber_level INTEGER DEFAULT 1,
+            sabotage_level INTEGER DEFAULT 1,
+            miner_level INTEGER DEFAULT 1,
+            last_miner_claim TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_missiles (
+            user_id INTEGER,
+            missile_name TEXT,
+            quantity INTEGER DEFAULT 0,
+            PRIMARY KEY (user_id, missile_name)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
 
 def get_user(user_id: int):
     conn = sqlite3.connect('zone.db')
@@ -8,31 +44,74 @@ def get_user(user_id: int):
     conn.close()
     return user
 
-def update_coins(user_id: int, amount: int):
+def init_user(user_id: int, username: str):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
-    cursor.execute('UPDATE users SET zone_coin = zone_coin + ? WHERE user_id = ?', (amount, user_id))
+    cursor.execute(
+        'INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)',
+        (user_id, username)
+    )
     conn.commit()
     conn.close()
 
-def update_gems(user_id: int, amount: int):
+def update_user_coins(user_id: int, amount: int):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
-    cursor.execute('UPDATE users SET zone_gem = zone_gem + ? WHERE user_id = ?', (amount, user_id))
+    cursor.execute(
+        'UPDATE users SET zone_coin = zone_coin + ? WHERE user_id = ?',
+        (amount, user_id)
+    )
     conn.commit()
     conn.close()
 
-def update_level(user_id: int, level: int):
+def update_user_gems(user_id: int, amount: int):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
-    cursor.execute('UPDATE users SET level = ? WHERE user_id = ?', (level, user_id))
+    cursor.execute(
+        'UPDATE users SET zone_gem = zone_gem + ? WHERE user_id = ?',
+        (amount, user_id)
+    )
     conn.commit()
     conn.close()
 
-def get_all_users():
+def update_user_zp(user_id: int, amount: int):
     conn = sqlite3.connect('zone.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT user_id FROM users')
-    users = [row[0] for row in cursor.fetchall()]
+    cursor.execute(
+        'UPDATE users SET zone_point = zone_point + ? WHERE user_id = ?',
+        (amount, user_id)
+    )
+    conn.commit()
     conn.close()
-    return users
+
+def update_user_power(user_id: int, amount: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE users SET power = power + ? WHERE user_id = ?',
+        (amount, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+def update_user_level(user_id: int, level: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'UPDATE users SET level = ? WHERE user_id = ?',
+        (level, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+def add_user_missile(user_id: int, missile_name: str, quantity: int = 1):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO user_missiles (user_id, missile_name, quantity)
+        VALUES (?, ?, ?)
+        ON CONFLICT(user_id, missile_name) 
+        DO UPDATE SET quantity = quantity + excluded.quantity
+    ''', (user_id, missile_name, quantity))
+    conn.commit()
+    conn.close()
