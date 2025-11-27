@@ -1,18 +1,15 @@
 import os
 import logging
-import sqlite3
 import asyncio
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
+import socket
+from aiohttp import web
 
-# تنظیمات logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# دریافت توکن از محیط
 BOT_TOKEN = os.getenv('BOT_TOKEN')
-ADMIN_IDS = [123456789]  # جایگزین کن با آیدی خودت
-
 if not BOT_TOKEN:
     logger.error("❌ BOT_TOKEN تنظیم نشده!")
     exit(1)
@@ -20,61 +17,61 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# دیتابیس
-def init_db():
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            user_id INTEGER PRIMARY KEY,
-            username TEXT,
-            zone_coin INTEGER DEFAULT 1000,
-            zone_gem INTEGER DEFAULT 10,
-            xp INTEGER DEFAULT 0,
-            level INTEGER DEFAULT 1,
-            power INTEGER DEFAULT 100,
-            defense_level INTEGER DEFAULT 1
-        )
-    ''')
-    conn.commit()
-    conn.close()
-    logger.info("✅ دیتابیس آماده شد")
+# ایجاد یک سرور HTTP ساده برای پورت binding
+async def handle_health_check(request):
+    return web.Response(text="🤖 WarZone Bot is running!")
 
-init_db()
+async def start_web_server():
+    """شروع یک سرور وب ساده برای پورت binding"""
+    app = web.Application()
+    app.router.add_get('/health', handle_health_check)
+    app.router.add_get('/', handle_health_check)
+    
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    port = int(os.getenv('PORT', 8080))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+    
+    logger.info(f"🌐 سرور وب روی پورت {port} شروع شد")
+    return runner
 
-# دستورات اصلی
 @dp.message(Command("start"))
 async def start_command(message: types.Message):
-    user_id = message.from_user.id
-    username = message.from_user.username or "ناشناس"
-    
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute(
-        'INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)',
-        (user_id, username)
+    await message.answer(
+        "🚀 **به WarZone خوش آمدید!**\n\n"
+        "🪐 ربات جنگی پیشرفته\n\n"
+        "دستورات در دسترس:\n"
+        "/start - نمایش این پیام\n"
+        "/profile - پروفایل شما\n"
+        "/miner - ماینر ZP\n"
+        "/shop - فروشگاه"
     )
-    conn.commit()
-    conn.close()
-    
-    await message.answer("🚀 به WarZone خوش آمدید!")
 
 @dp.message(Command("profile"))
 async def profile_command(message: types.Message):
-    user_id = message.from_user.id
-    
-    conn = sqlite3.connect('zone.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
-    user = cursor.fetchone()
-    conn.close()
-    
-    if user:
-        await message.answer(f"👤 پروفایل:\nسکه: {user[2]}\nجم: {user[3]}\nسطح: {user[5]}")
+    await message.answer("👤 **پروفایل شما:**\n💎 سکه: 1,000\n🆙 سطح: 1\n💪 قدرت: 100")
+
+@dp.message(Command("miner"))
+async def miner_command(message: types.Message):
+    await message.answer("⛏️ **ماینر ZP:**\nسطح ۱ - ۱۰۰ ZP/ساعت\n💰 موجودی: ۰ ZP")
+
+@dp.message(Command("shop"))
+async def shop_command(message: types.Message):
+    await message.answer("🛒 **فروشگاه:**\n💣 موشک‌ها\n🚁 جنگنده‌ها\n🛡️ پدافندها")
 
 async def main():
-    logger.info("🤖 ربات WarZone شروع به کار کرد...")
-    await dp.start_polling(bot)
+    logger.info("🤖 در حال راه‌اندازی ربات WarZone...")
+    
+    # شروع سرور وب برای پورت binding
+    web_runner = await start_web_server()
+    
+    try:
+        logger.info("🚀 ربات WarZone شروع به کار کرد!")
+        await dp.start_polling(bot)
+    finally:
+        await web_runner.cleanup()
 
 if __name__ == "__main__":
     asyncio.run(main())
