@@ -1,0 +1,22 @@
+from config import MAX_COIN_LOSS_PERCENT, CAP_LOSS_MULTIPLIER, MIN_COIN_LOSS
+
+def calculate_cap_loss(defender_cap: int, damage: int) -> int:
+    """محاسبه کاپ از دست رفته مدافع"""
+    cap_loss = int(damage * CAP_LOSS_MULTIPLIER)
+    return min(cap_loss, defender_cap // 2)  # حداکثر نصف کاپ
+
+def calculate_coin_loss(defender_coins: int, damage: int) -> int:
+    """محاسبه سکه از دست رفته مدافع"""
+    max_loss = int(defender_coins * MAX_COIN_LOSS_PERCENT)
+    coin_loss = min(damage // 2, max_loss)  # نصف دمیج یا حداکثر 1/3 ذخایر
+    return max(coin_loss, MIN_COIN_LOSS)
+
+def calculate_xp_gain(damage: int, defender_level: int, attacker_level: int) -> int:
+    """محاسبه XP کسب شده"""
+    base_xp = damage // 10
+    level_bonus = max(0, defender_level - attacker_level) * 5
+    return base_xp + level_bonus
+
+def can_user_buy(user_coins: int, item_price: int, user_level: int, required_level: int) -> bool:
+    """بررسی امکان خرید آیتم"""
+    return user_coins >= item_price and user_level >= required_level
