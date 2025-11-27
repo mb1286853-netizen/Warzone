@@ -10,3 +10,4 @@ services:
         value: your_bot_token_here
       - key: ADMIN_IDS
         value: "123456789"
+    healthCheckPath: /health
