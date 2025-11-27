@@ -1,0 +1,38 @@
+import sqlite3
+
+def get_user(user_id: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM users WHERE user_id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def update_coins(user_id: int, amount: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET zone_coin = zone_coin + ? WHERE user_id = ?', (amount, user_id))
+    conn.commit()
+    conn.close()
+
+def update_gems(user_id: int, amount: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET zone_gem = zone_gem + ? WHERE user_id = ?', (amount, user_id))
+    conn.commit()
+    conn.close()
+
+def update_level(user_id: int, level: int):
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('UPDATE users SET level = ? WHERE user_id = ?', (level, user_id))
+    conn.commit()
+    conn.close()
+
+def get_all_users():
+    conn = sqlite3.connect('zone.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM users')
+    users = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return users
