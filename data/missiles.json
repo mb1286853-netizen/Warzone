@@ -1,0 +1,12 @@
+{
+  "شهاب ۱": {"damage": 50, "price": 200, "min_level": 1, "category": "پیشرفته"},
+  "شهاب ۲": {"damage": 70, "price": 350, "min_level": 2, "category": "پیشرفته"},
+  "سومار": {"damage": 90, "price": 500, "min_level": 3, "category": "پیشرفته"},
+  "قدر": {"damage": 110, "price": 700, "min_level": 4, "category": "پیشرفته"},
+  "فاتح": {"damage": 130, "price": 1000, "min_level": 5, "category": "پیشرفته"},
+  "زلزال": {"damage": 160, "price": 1500, "min_level": 6, "category": "فوق‌پیشرفته"},
+  "نازعات": {"damage": 190, "price": 2000, "min_level": 7, "category": "فوق‌پیشرفته"},
+  "صیاد": {"damage": 220, "price": 2500, "min_level": 8, "category": "فوق‌پیشرفته"},
+  "رعد": {"damage": 250, "price": 3000, "min_level": 9, "category": "فوق‌پیشرفته"},
+  "صاعقه": {"damage": 280, "price": 3500, "min_level": 10, "category": "فوق‌پیشرفته"}
+}
