@@ -1,0 +1,8 @@
+{
+  "F-16 Falcon": {"bonus": 80, "price": 5000, "min_level": 10},
+  "F-22 Raptor": {"bonus": 150, "price": 12000, "min_level": 12},
+  "Su-57 Felon": {"bonus": 220, "price": 25000, "min_level": 14},
+  "F-35 Lightning": {"bonus": 300, "price": 50000, "min_level": 15},
+  "Su-75 Checkmate": {"bonus": 400, "price": 80000, "min_level": 16},
+  "NGAD": {"bonus": 500, "price": 120000, "min_level": 18}
+}
